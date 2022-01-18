@@ -9,21 +9,22 @@ const POPULATION_SIZE: usize = 100;
 const TOURNAMENT_SIZE: usize = 10;
 const MAX_GENERATIONS: usize = 1000;
 
-/// A single member of a population. The state is encoded in `cols`, a vector
-/// where each entry specifies the position of the queen in the corresponding
-/// column. For example, `cols[1] = 2` means there's a queen at the
-/// intersection of column two and row three (rows are zero-indexed too).
+/// A single member of a population. The state is encoded in `rows_by_col`, a
+/// vector where each entry specifies the position of the queen in the
+/// corresponding column. For example, `rows_by_col[1] = 2` means there's a
+/// queen at the intersection of column two and row three (rows are
+/// zero-indexed too).
 struct Individual {
-    cols: Vec<usize>,
+    rows_by_col: Vec<usize>,
 }
 
 impl Individual {
     /// Creates and returns a random individual.
     fn random(rng: &Rng) -> Individual {
-        let cols = iter::repeat_with(|| rng.usize(0..NUM_QUEENS))
+        let rows_by_col = iter::repeat_with(|| rng.usize(0..NUM_QUEENS))
             .take(NUM_QUEENS)
             .collect();
-        Individual { cols }
+        Individual { rows_by_col }
     }
 
     /// Returns the fitness of the individual. Fitness is measured by the
@@ -34,10 +35,10 @@ impl Individual {
     fn fitness(&self) -> usize {
         let mut fitness = 0;
 
-        for col_i in 0..self.cols.len() {
-            for col_j in (col_i + 1)..self.cols.len() {
-                let row_i = self.cols[col_i];
-                let row_j = self.cols[col_j];
+        for col_i in 0..self.rows_by_col.len() {
+            for col_j in (col_i + 1)..self.rows_by_col.len() {
+                let row_i = self.rows_by_col[col_i];
+                let row_j = self.rows_by_col[col_j];
                 let on_same_diagonal = row_i as isize - col_i as isize
                     == row_j as isize - col_j as isize
                     || row_i + col_i == row_j + col_j;
@@ -58,20 +59,24 @@ impl Individual {
 
 impl fmt::Display for Individual {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let rows = self.cols.iter().map(|col| col.to_string()).fold(
-            String::with_capacity(self.cols.len()),
-            |mut acc, b| {
-                acc.push_str(&b);
-                acc.push(' ');
-                acc
-            },
-        );
+        let rows = self
+            .rows_by_col
+            .iter()
+            .map(|row| (row + 1).to_string())
+            .fold(
+                String::with_capacity(self.rows_by_col.len()),
+                |mut acc, b| {
+                    acc.push_str(&b);
+                    acc.push(' ');
+                    acc
+                },
+            );
 
         let mut board =
             String::with_capacity(NUM_QUEENS * NUM_QUEENS + NUM_QUEENS - 1);
         for row in 0..NUM_QUEENS {
             for col in 0..NUM_QUEENS {
-                if self.cols[col] == row {
+                if self.rows_by_col[col] == row {
                     board.push('Q');
                 } else {
                     board.push('.');
@@ -133,11 +138,11 @@ fn selection<'a>(
 /// Creates a new individual by performing single point crossover on the two
 /// given individuals.
 fn crossover(rng: &Rng, a: &Individual, b: &Individual) -> Individual {
-    let crossover_point = rng.usize(..a.cols.len());
-    let (left_a, _) = a.cols.split_at(crossover_point);
-    let (_, right_b) = b.cols.split_at(crossover_point);
+    let crossover_point = rng.usize(..a.rows_by_col.len());
+    let (left_a, _) = a.rows_by_col.split_at(crossover_point);
+    let (_, right_b) = b.rows_by_col.split_at(crossover_point);
     Individual {
-        cols: [left_a, right_b].concat(),
+        rows_by_col: [left_a, right_b].concat(),
     }
 }
 
@@ -147,9 +152,9 @@ fn crossover(rng: &Rng, a: &Individual, b: &Individual) -> Individual {
 fn mutate(rng: &Rng, individual: &mut Individual) {
     let mutation_chance = 1.0 / NUM_QUEENS as f64;
 
-    for i in 0..individual.cols.len() {
+    for i in 0..individual.rows_by_col.len() {
         if rng.f64() < mutation_chance {
-            individual.cols[i] = rng.usize(0..NUM_QUEENS);
+            individual.rows_by_col[i] = rng.usize(0..NUM_QUEENS);
         }
     }
 }
